@@ -1,129 +1,125 @@
+import gymnasium as gym
+from gymnasium import spaces
 import numpy as np
+import cv2
 import os
-from desmume.emulator import DeSmuME
-from desmume.controls import keymask, Keys
-from PIL import Image
+import math
+from desmume.emulator import DeSmuME, SCREEN_WIDTH, SCREEN_HEIGHT_BOTH
 from src.utils import config
 
-class MKDSEnv:
+class MKDSEnv(gym.Env):
     def __init__(self):
-        # Initializing emulator and SDL window for visualization
+        super(MKDSEnv, self).__init__()
+        # Initialize emulator [cite: 112]
         self.emu = DeSmuME()
         self.emu.open(config.ROM_PATH)
         self.window = self.emu.create_sdl_window()
         
-        # discrete RL actions mapped to emulator keymasks
+        # Action Space: 6 Discrete actions
+        self.action_space = spaces.Discrete(config.ACTION_SPACE)
+        
+        # Observation Space: 84x84 Grayscale
+        self.observation_space = spaces.Box(low=0, high=255, 
+                                            shape=(config.STATE_H, config.STATE_W, 1), 
+                                            dtype=np.uint8)
+
+        # Action mapping
         self.action_map = self._setup_actions()
         
-        # Checkpoint angles from Lua script for Figure-8 Circuit
+        # Circuit Data
         self.chkpnt_ang = [
             16380, 16380, 20805, 24812, 28650, -30861, -23773, -17975, -15386, -11925,
             -8233, -8233, -8233, -8233, -8233, -8233, -14276, -18273, -27352, 29514, 
             26495, 18165, 16380, 16380, 16380, 16380
         ]
 
-        # Episode tracking
+        # Tracking variables
         self.prev_checkpoint = 0
         self.prev_lap = 0
+        self.stuck_counter = 0
+        self.last_pos = (0, 0, 0)
 
     def _setup_actions(self):
-        """Standard 6-action space for solo Time Trials."""
-        ACCEL = keymask(Keys.KEY_A)  # X button
-        LEFT = keymask(Keys.KEY_LEFT)
-        RIGHT = keymask(Keys.KEY_RIGHT)
-        DRIFT = keymask(Keys.KEY_R)  # W key in your original config
-        
+        from desmume.controls import keymask, Keys
+        ACCEL, LEFT, RIGHT, DRIFT = keymask(Keys.KEY_A), keymask(Keys.KEY_LEFT), keymask(Keys.KEY_RIGHT), keymask(Keys.KEY_R)
         return {
-            0: [ACCEL],                         # Straight
-            1: [ACCEL, LEFT],                   # Left
-            2: [ACCEL, RIGHT],                  # Right
-            3: [ACCEL, DRIFT],                  # Drift Straight
-            4: [ACCEL, DRIFT, LEFT],            # Drift Left
-            5: [ACCEL, DRIFT, RIGHT]            # Drift Right
+            0: [ACCEL], 1: [ACCEL, LEFT], 2: [ACCEL, RIGHT],
+            3: [ACCEL, DRIFT], 4: [ACCEL, DRIFT, LEFT], 5: [ACCEL, DRIFT, RIGHT]
         }
 
-    def _get_state(self):
-        """Captures and processes the top screen into 84x84 grayscale."""
-        img = self.emu.screenshot()
-        # Crop Top Screen (256x192)
-        top_screen = img.crop((0, 0, 256, 192))
-        # Resize to 84x84 and convert to grayscale
-        gray = top_screen.resize((config.STATE_W, config.STATE_H), Image.Resampling.LANCZOS).convert('L')
-        return np.array(gray, dtype=np.uint8)
+    def _get_obs(self):
+        """Optimized Frame Capture using raw RGBX buffer[cite: 143]."""
+        # Get memoryview of the RGBX buffer [cite: 143]
+        raw_mv = self.emu.display_buffer_as_rgbx() 
+        # Convert to numpy without copying
+        img = np.frombuffer(raw_mv, dtype=np.uint8).reshape(SCREEN_HEIGHT_BOTH, SCREEN_WIDTH, 4)
+        # Crop Top Screen (192 lines) [cite: 7]
+        top_screen = img[:192, :, :3] 
+        # Resize using OpenCV (faster than PIL)
+        gray = cv2.cvtColor(top_screen, cv2.COLOR_RGB2GRAY)
+        resized = cv2.resize(gray, (config.STATE_W, config.STATE_H), interpolation=cv2.INTER_AREA)
+        return np.expand_dims(resized, axis=-1)
 
     def _read_ram(self):
-        """Direct RAM reads using your established offsets."""
-        base_ptr = int.from_bytes(self.emu.memory.unsigned[config.ADDR_BASE_POINTER:config.ADDR_BASE_POINTER+4], 'little')
-        race_ptr = int.from_bytes(self.emu.memory.unsigned[config.ADDR_RACE_INFO_POINTER:config.ADDR_RACE_INFO_POINTER+4], 'little')
+        # Direct unsigned access via memory property [cite: 126]
+        mem = self.emu.memory.unsigned
+        base_ptr = int.from_bytes(mem[config.ADDR_BASE_POINTER:config.ADDR_BASE_POINTER+4], 'little')
+        race_ptr = int.from_bytes(mem[config.ADDR_RACE_INFO_POINTER:config.ADDR_RACE_INFO_POINTER+4], 'little')
         
         if base_ptr == 0 or race_ptr == 0:
-            return 0.0, 0, 0, 0, 1.0
-            
-        # Physics and progress data
-        speed = int.from_bytes(self.emu.memory.unsigned[base_ptr + config.OFFSET_SPEED:base_ptr + config.OFFSET_SPEED + 4], 'little', signed=True) / 4096.0
-        angle = int.from_bytes(self.emu.memory.unsigned[base_ptr + config.OFFSET_ANGLE:base_ptr + config.OFFSET_ANGLE + 2], 'little', signed=True)
-        checkpoint = self.emu.memory.unsigned[race_ptr + config.OFFSET_CHECKPOINT]
-        lap = self.emu.memory.unsigned[race_ptr + config.OFFSET_LAP]
-        offroad_mod = int.from_bytes(self.emu.memory.unsigned[base_ptr + config.OFFSET_OFFROAD:base_ptr + config.OFFSET_OFFROAD + 4], 'little', signed=True) / 4096.0
-        
-        return speed, angle, checkpoint, lap, offroad_mod
+            return 0.0, 0, 0, 0, 1.0, (0,0,0)
 
-    def calculate_reward(self, speed, angle, checkpoint, lap, offroad_mod):
-        """Rewards speed and correct direction, penalizes offroad."""
-        # Base reward is speed
-        reward = speed * 2.0
-        
-        # Wrong direction determination from Lua logic
-        if checkpoint < len(self.chkpnt_ang):
-            ref_angle = self.chkpnt_ang[checkpoint]
-            # Normalize angles for calculation
-            reangle = 65520 + angle if angle < 0 else angle
-            reref_angle = 65520 + ref_angle if ref_angle < 0 else ref_angle
-            
-            angle_diff = min(abs(reref_angle - reangle) % 65520, (65520 - abs(reref_angle - reangle) % 65520))
-            if angle_diff > 16380: # Over 90 degrees deviation
-                reward = -abs(reward) # Penalize going backwards
-        
-        # Progression bonuses
-        if checkpoint > self.prev_checkpoint:
-            reward += 15.0
-        if lap > self.prev_lap:
-            reward += 100.0
-            
-        # Offroad penalty
-        if offroad_mod < 0.9:
-            reward *= 0.5
-            
-        self.prev_checkpoint = checkpoint
-        self.prev_lap = lap
-        return reward
+        speed = int.from_bytes(mem[base_ptr + config.OFFSET_SPEED:base_ptr + config.OFFSET_SPEED + 4], 'little', signed=True) / 4096.0
+        angle = int.from_bytes(mem[base_ptr + config.OFFSET_ANGLE:base_ptr + config.OFFSET_ANGLE + 2], 'little', signed=True)
+        checkpoint = mem[race_ptr + config.OFFSET_CHECKPOINT]
+        lap = mem[race_ptr + config.OFFSET_LAP]
+        offroad = int.from_bytes(mem[base_ptr + config.OFFSET_OFFROAD:base_ptr + config.OFFSET_OFFROAD + 4], 'little', signed=True) / 4096.0
+        pos = (
+            int.from_bytes(mem[base_ptr + 0x80 : base_ptr + 0x84], 'little', signed=True),
+            int.from_bytes(mem[base_ptr + 0x84 : base_ptr + 0x88], 'little', signed=True),
+            int.from_bytes(mem[base_ptr + 0x88 : base_ptr + 0x8C], 'little', signed=True)
+        )
+        return speed, angle, checkpoint, lap, offroad, pos
 
-    def step(self, action_idx):
-        """Applies action, advances 4 frames, and returns observation."""
+    def step(self, action):
         self.emu.input.keypad_update(0)
-        for key in self.action_map[action_idx]:
+        for key in self.action_map[action]:
             self.emu.input.keypad_add_key(key)
         
-        # Advance emulator (Frame Skip 4)
-        for _ in range(4):
-            self.emu.cycle()
-        
-        self.window.draw()
-        
-        next_raw_frame = self._get_state()
-        speed, angle, cp, lap, offroad = self._read_ram()
-        reward = self.calculate_reward(speed, angle, cp, lap, offroad)
-        
-        # Done if race is finished (3 laps)
-        done = True if lap >= 3 else False
-        
-        return next_raw_frame, reward, done
+        for _ in range(4): self.emu.cycle() 
+        self.window.draw() 
 
-    def reset(self):
-        """Loads boot savestate and returns initial state."""
-        if os.path.exists(config.SAVE_FILE_NAME):
-            self.emu.savestate.load_file(config.SAVE_FILE_NAME)
+        obs = self._get_obs()
+        speed, angle, cp, lap, offroad, pos = self._read_ram()
         
-        self.prev_checkpoint = 0
-        self.prev_lap = 0
-        return self._get_state()
+        # Reward Logic
+        reward = speed * 2.0
+        if cp > self.prev_checkpoint: reward += 15.0
+        if offroad < 0.9: reward *= 0.5
+        
+        # Termination Logic (Watchdogs)
+        terminated = False
+        truncated = False
+        
+        # 1. Stuck Detection
+        dist = math.dist(pos, self.last_pos)
+        if dist < 100: # Adjust based on 1/4096 scale
+            self.stuck_counter += 1
+        else:
+            self.stuck_counter = 0
+        
+        if self.stuck_counter > 150: # Stuck for ~10 seconds
+            terminated = True
+            reward -= 20.0
+            
+        if lap >= 3: terminated = True
+        
+        self.prev_checkpoint, self.prev_lap, self.last_pos = cp, lap, pos
+        return obs, reward, terminated, truncated, {}
+
+    def reset(self, seed=None, options=None):
+        super().reset(seed=seed)
+        if os.path.exists(config.SAVE_FILE_NAME):
+            self.emu.savestate.load_file(config.SAVE_FILE_NAME) 
+        self.stuck_counter = 0
+        return self._get_obs(), {}
