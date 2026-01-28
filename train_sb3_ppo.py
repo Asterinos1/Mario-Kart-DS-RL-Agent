@@ -9,7 +9,8 @@ def make_env():
 
 if __name__ == "__main__":
     # 1. Parallelize: Use 8 environments (half of your logical cores)
-    num_envs = 8
+    # changed to 1 for debugging
+    num_envs = 1
     env = SubprocVecEnv([make_env for _ in range(num_envs)])
     
     # 2. Frame Stacking (SB3 version of your wrappers.py)

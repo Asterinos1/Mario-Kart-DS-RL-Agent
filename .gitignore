@@ -3,7 +3,7 @@ mkds_venv/
 .venv/
 envs/
 /logs/
-logs/
+/outputs/
 # --- Python Junk ---
 __pycache__/
 *.py[cod]
