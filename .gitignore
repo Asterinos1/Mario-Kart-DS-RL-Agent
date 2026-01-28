@@ -4,6 +4,7 @@ mkds_venv/
 envs/
 /logs/
 /outputs/
+logs/DQN_*/
 # --- Python Junk ---
 __pycache__/
 *.py[cod]

@@ -119,14 +119,14 @@ class MKDSEnv(gym.Env):
         # 300 internal ticks = 5 seconds
         if cp > self.prev_checkpoint or lap > self.prev_lap:
             self.last_cp_time_stamp = current_time
-        elif (current_time - self.last_cp_time_stamp) > 300:
+        elif (current_time - self.last_cp_time_stamp) > 10:
             truncated = True
             terminated = True
             reward = -15.0
 
         # 3. Sudden Collision / Wall Scraping (Speed drop > 50%)
         speed_drop = self.prev_speed - speed
-        if speed < 1 and speed_drop > 3:
+        if speed < 5 and speed_drop > 3:
             terminated = True
             reward = -30.0
 
