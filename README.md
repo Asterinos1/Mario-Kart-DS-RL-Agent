@@ -27,7 +27,7 @@ pip install -r requierments.txt
 ## Requirements
 
 - Python 3.12.x (developed on Python 3.12.7)
-- OS: Test on Windows 11 but should also on Linux/MacOS
+- OS: Test on Windows 11 but should also work on Linux/MacOS
 - Emulator: I used the [DeSmuME](https://desmume.org/) emulator's [py-desmume](https://pypi.org/project/py-desmume/) python library. We only need the latter (it's included in the `requierments.txt`)
 - ROM: You must own a legal copy of the Mario Kart DS ROM (USA version).
 - GPU is helpful for faster CNN training but not strictly required
