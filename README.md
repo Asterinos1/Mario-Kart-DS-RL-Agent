@@ -1,8 +1,8 @@
-# Mario Kart DS - RL Agent (DQN/PPO)
+# Mario Kart DS - RL Agent (DQN/CNN)
 
 ## Overview
 
-This project implements an autonomous Reinforcement Learning agent for **Mario Kart DS**. It combines **Convolutional Neural Networks** (CNNs) with **Deep Q-Networks** (DQN) and optionally uses **Stable-Baselines3** (SB3) **PPO** for experimentation. The agent uses a dual-input approach: visual observations (top-screen captures) and low-level telemetry retrieved directly from the DeSmuME emulator via the `py-desmume` library for reward shaping and richer state information.
+This project implements an autonomous Reinforcement Learning agent for **Mario Kart DS**. It combines **Convolutional Neural Networks** (CNNs) with **Deep Q-Networks** (DQN) and optionally uses **Stable-Baselines3** (SB3) for experimentation. The agent uses a dual-input approach: visual observations (top-screen captures) and low-level telemetry retrieved directly from the DeSmuME emulator via the `py-desmume` library for reward shaping and richer state information.
 
 Developed as part of the **Autonomous Agents (ΠΛΗ 412, 2025–2026)** course at the **Technical University of Crete**.
 
