@@ -1,4 +1,4 @@
-# Mario Kart DS RL Agent (DQN / PPO)
+# Mario Kart DS RL Agent (DQN / CNN)
 
 This repository contains a Reinforcement Learning agent designed to play **Mario Kart DS (USA Version)** autonomously. The project utilizes **DQN**, **CNNs**, **Stable-Baselines3 (SB3)**, and **Gymnasium** to teach an agent to play **Mario Kart DS (USA)**. The agent combines **visual input** (top screen capture) with **internal emulator state** (RAM access) via **DeSmuME**.
 
