@@ -8,11 +8,15 @@ from desmume.emulator import DeSmuME, SCREEN_WIDTH, SCREEN_HEIGHT_BOTH
 from src.utils import config
 
 class MKDSEnv(gym.Env):
-    def __init__(self):
+    def __init__(self, visualize=False):
         super(MKDSEnv, self).__init__()
         self.emu = DeSmuME()
         self.emu.open(config.ROM_PATH)
-        self.window = self.emu.create_sdl_window()
+        
+        # Only create window if requested to save resources during training
+        self.window = None
+        if visualize:
+            self.window = self.emu.create_sdl_window()
         
         # Action Space: 6 Discrete actions
         self.action_space = spaces.Discrete(config.ACTION_SPACE)
@@ -34,15 +38,22 @@ class MKDSEnv(gym.Env):
 
     def _setup_actions(self):
         from desmume.controls import keymask, Keys
-        ACCEL, LEFT, RIGHT, DRIFT = keymask(Keys.KEY_A), keymask(Keys.KEY_LEFT), keymask(Keys.KEY_RIGHT), keymask(Keys.KEY_R)
+        # Removed DRIFT (Keymask for Keys.KEY_R) 
+        ACCEL, LEFT, RIGHT = keymask(Keys.KEY_A), keymask(Keys.KEY_LEFT), keymask(Keys.KEY_RIGHT)
+        # ACCEL, LEFT, RIGHT, DRIFT = keymask(Keys.KEY_A), keymask(Keys.KEY_LEFT), keymask(Keys.KEY_RIGHT), keymask(Keys.KEY_R)
+        # return {
+        #     0: [ACCEL], 
+        #     1: [ACCEL, LEFT], 
+        #     2: [ACCEL, RIGHT],
+        #     3: [ACCEL, DRIFT], 
+        #     4: [ACCEL, DRIFT, LEFT], 
+        #     5: [ACCEL, DRIFT, RIGHT]
+        # }
         return {
-            0: [ACCEL], 
-            1: [ACCEL, LEFT], 
-            2: [ACCEL, RIGHT],
-            3: [ACCEL, DRIFT], 
-            4: [ACCEL, DRIFT, LEFT], 
-            5: [ACCEL, DRIFT, RIGHT]
-        }
+        0: [ACCEL],         # Straight
+        1: [ACCEL, LEFT],   # Left
+        2: [ACCEL, RIGHT]   # Right
+    }
 
     def _get_obs(self):
         raw_mv = self.emu.display_buffer_as_rgbx() 
@@ -98,7 +109,10 @@ class MKDSEnv(gym.Env):
         # [cite_start]Step emulator and update window [cite: 138, 12]
         for _ in range(4): 
             self.emu.cycle() 
-        self.window.draw() 
+        # commenting this out    
+        # FIX: Only draw if the window was initialized
+        if self.window is not None:
+            self.window.draw()
 
         obs = self._get_obs()
         speed, angle, cp, lap, offroad, pos = self._read_ram()
