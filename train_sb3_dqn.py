@@ -23,7 +23,7 @@ if __name__ == "__main__":
     # Environment Setup (No window for speed)
     num_envs = 4
     env = SubprocVecEnv([make_env(visualize=False) for _ in range(num_envs)])
-    env = VecFrameStack(env, n_stack=4, channels_order='last')
+    env = VecFrameStack(env, n_stack=config.STACK_SIZE, channels_order='last')
 
     model_path = "outputs/mkds_dqn_final.zip"
     
