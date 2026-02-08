@@ -7,7 +7,7 @@ from desmume.emulator import DeSmuME
 from desmume.controls import keymask, Keys
 
 # --- CONFIGURATION ---
-ROM_PATH = 'C:/Users/PC/Desktop/DS-DSi/Library/mkds_usa.nds'
+ROM_PATH = 'C:/Users/PC/Desktop/DS-DSi/Libray/mkds_usa.nds'
 SAVE_FILE_NAME = 'C:/Users/PC/Documents/GitHub/MKDS-RL-Agent/mkds_boot.dst'
 
 # --- POINTERS (US Version) ---

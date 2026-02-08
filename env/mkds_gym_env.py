@@ -163,7 +163,7 @@ class MKDSEnv(gym.Env):
             if offroad < 0.9: # Penalize grass
                 reward *= 0.5
             
-            if lap >= 3: 
+            if lap > 3: 
                 terminated = True
                 reward += 100.0
 
