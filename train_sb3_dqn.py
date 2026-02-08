@@ -37,7 +37,7 @@ if __name__ == "__main__":
             buffer_size=config.MEMORY_SIZE,        
             batch_size=config.BATCH_SIZE,         
             learning_rate=config.LEARNING_RATE,    
-            optimize_memory_usage=True,
+            #optimize_memory_usage=True,
             verbose=1,
             device="cuda",
             tensorboard_log="./logs/" #
