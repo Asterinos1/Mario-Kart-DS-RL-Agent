@@ -1,6 +1,21 @@
+import os
+import glob
+from pathlib import Path
+
+# Resolve the project root: config.py is in root/src/utils/
+# .parent (utils) -> .parent (src) -> .parent (root)
+ROOT_DIR = Path(__file__).resolve().parent.parent.parent
+
 # --- ROM & SAVE STATE PATH ---
-ROM_PATH = 'C:/Users/PC/Desktop/DS-DSi/Libray/mkds_usa.nds'
-SAVE_FILE_NAME = 'C:/Users/PC/Documents/GitHub/MKDS-RL-Agent/mkds_boot.dst'
+# Locate any .nds file within root/rom/
+rom_folder = ROOT_DIR / "rom"
+rom_files = list(rom_folder.glob("*.nds"))
+
+if not rom_files:
+    raise FileNotFoundError(f"No .nds ROM found in {rom_folder}")
+
+ROM_PATH = str(rom_files[0])
+SAVE_FILE_NAME = str(ROOT_DIR / "mkds_boot.dst")
 
 # --- RL Hyperparameters ---
 STATE_W, STATE_H = 84, 84

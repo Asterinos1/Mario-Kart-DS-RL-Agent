@@ -5,6 +5,7 @@ envs/
 /logs/
 /outputs/
 logs/DQN_*/
+rom/*.nds
 # --- Python Junk ---
 __pycache__/
 *.py[cod]

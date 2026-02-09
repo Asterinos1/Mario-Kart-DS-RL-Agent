@@ -66,6 +66,6 @@ python tf_event_parser.py
 Viewing Results: To see the graphs and plots, navigate to: outputs/{run_id}/plots/
 
 
-### License
+## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
