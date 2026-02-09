@@ -30,6 +30,9 @@ def select_resume_option():
 
 def train():
     run_id, model_path = select_resume_option()
+    # Define the log directory for TensorBoard
+    # You can point this to the root /logs or keep it inside /outputs/{run_id}/logs
+    tb_log_path = "./logs/"
     
     # Setup environment (4 envs for Ryzen 7 7435HS overhead)
     env = SubprocVecEnv([lambda: MKDSEnv(visualize=False) for _ in range(4)])
@@ -37,7 +40,7 @@ def train():
 
     if model_path:
         print(f"--- Resuming: {run_id} ---")
-        model = DQN.load(model_path, env=env, device="cuda")
+        model = DQN.load(model_path, env=env, device="cuda", tensorboard_log=tb_log_path)
         # SB3 DQN requires manual replay buffer loading
         buffer_path = model_path.replace(".zip", "_replay_buffer.pkl")
         if os.path.exists(buffer_path):
@@ -46,7 +49,7 @@ def train():
         run_id = f"DQN_{datetime.now().strftime('%m%d_%H%M')}"
         print(f"--- Fresh Run: {run_id} ---")
         model = DQN("CnnPolicy", env, verbose=1, device="cuda",
-                    buffer_size=config.MEMORY_SIZE, batch_size=config.BATCH_SIZE)
+                    buffer_size=config.MEMORY_SIZE, batch_size=config.BATCH_SIZE, tensorboard_log=tb_log_path)
 
     base_path = f"outputs/{run_id}"
     os.makedirs(f"{base_path}/models", exist_ok=True)
@@ -61,7 +64,7 @@ def train():
 
     try:
         print("Training started. Press Ctrl+C to stop safely.")
-        model.learn(total_timesteps=1000000, callback=callbacks, reset_num_timesteps=False)
+        model.learn(total_timesteps=1000000, callback=callbacks, reset_num_timesteps=False, tb_log_name=run_id)
     except KeyboardInterrupt:
         print("\n[INTERRUPT] Caught Ctrl+C. Saving current progress...")
     finally:

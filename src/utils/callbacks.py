@@ -10,9 +10,12 @@ class MKDSMetricsCallback(BaseCallback):
         self.flush_freq = 5000
 
     def _on_training_start(self):
-        with open(self.log_path, 'w', newline='') as f:
+        # Only write the header if the file doesn't already exist
+        file_exists = os.path.isfile(self.log_path)
+        with open(self.log_path, 'a', newline='') as f:
             writer = csv.writer(f)
-            writer.writerow(["step", "speed", "offroad", "pos_x", "pos_z", "action", "reason"])
+            if not file_exists:
+                writer.writerow(["step", "speed", "offroad", "pos_x", "pos_z", "action", "reason"])
 
     def _on_step(self) -> bool:
         for i in range(len(self.locals["infos"])):

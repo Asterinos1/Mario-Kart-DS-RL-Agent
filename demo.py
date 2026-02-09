@@ -66,7 +66,7 @@ def run_demo():
     try:
         while True: 
             # Predict action - deterministic=True is standard for testing/demo
-            action, _states = model.predict(obs, deterministic=True)
+            action, _states = model.predict(obs, deterministic=False)
             
             # Step the environment
             obs, rewards, dones, infos = env.step(action)           
