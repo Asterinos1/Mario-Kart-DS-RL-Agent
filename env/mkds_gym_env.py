@@ -121,6 +121,7 @@ class MKDSEnv(gym.Env):
         terminated = False
         truncated = False
         reward = 0.0
+        reason = "driving"
 
         # --- WATCHDOG LOGIC ---
         
@@ -128,6 +129,7 @@ class MKDSEnv(gym.Env):
         if cp < self.prev_checkpoint and lap == self.prev_lap:
             terminated = True
             reward = -50.0
+            reason = "backward"
         
         # 2. CP Change Timeout (Internal Timer Logic)
         # 300 internal ticks = 5 seconds
@@ -137,12 +139,16 @@ class MKDSEnv(gym.Env):
             truncated = True
             terminated = True
             reward = -15.0
+            reason = "timeout"
+
 
         # 3. Sudden Collision / Wall Scraping (Speed drop > 50%)
         speed_drop = self.prev_speed - speed
         if speed < 5 and speed_drop > 3:
             terminated = True
             reward = -30.0
+            reason = "collision"
+
 
         # 4. Aggressive Stuck Detection
         dist = math.dist(pos, self.last_pos)
@@ -154,6 +160,8 @@ class MKDSEnv(gym.Env):
         if self.stuck_counter > 80: # ~5-6 seconds of no meaningful progress
             terminated = True
             reward = -20.0
+            reason = "stuck"
+        
 
         # --- STANDARD REWARD (If not terminated/truncated) ---
         if not (terminated or truncated):
@@ -166,12 +174,27 @@ class MKDSEnv(gym.Env):
             if lap > 3: 
                 terminated = True
                 reward += 100.0
+                reason = "finished"
+
 
         # Update historical trackers
         self.prev_checkpoint, self.prev_lap = cp, lap
         self.last_pos, self.prev_speed = pos, speed
         
-        return obs, reward, terminated, truncated, {}
+        # Enhanced Info Dictionary
+        info = {
+            "telemetry": {
+                "speed": speed,
+                "offroad": offroad,
+                "pos_x": pos[0],
+                "pos_y": pos[1], # Vertical in DS space
+                "pos_z": pos[2],
+                "action": action
+            },
+            "terminal_reason": reason if terminated else None
+        }
+
+        return obs, reward, terminated, truncated, info
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)

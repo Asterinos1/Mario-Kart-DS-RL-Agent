@@ -1,62 +1,81 @@
 import os
-import argparse
+import glob
 from datetime import datetime
-import torch
 from stable_baselines3 import DQN
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecFrameStack
-from stable_baselines3.common.callbacks import CheckpointCallback
+from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList
 from env.mkds_gym_env import MKDSEnv
+from src.utils.callbacks import MKDSMetricsCallback
 from src.utils import config
 
-def make_env(visualize=False):
-    return lambda: MKDSEnv(visualize=visualize)
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="MKDS SB3 DQN Trainer")
-    parser.add_argument("--load", type=str, help="Path to a .zip model to resume training")
-    parser.add_argument("--run_name", type=str, default=None, help="Custom name for this training run")
-    args = parser.parse_args()
-
-    # Create a unique ID for logs
-    run_id = args.run_name or f"DQN_{datetime.now().strftime('%m%d_%H%M')}"
+def select_resume_option():
+    """Scans outputs directory and provides an interactive menu."""
+    if not os.path.exists("outputs"): return None, None
+    runs = [d for d in os.listdir("outputs") if os.path.isdir(os.path.join("outputs", d))]
+    options = []
+    for run in runs:
+        model_files = glob.glob(f"outputs/{run}/models/*.zip")
+        if model_files:
+            latest_model = max(model_files, key=os.path.getmtime)
+            options.append((run, latest_model))
     
-    # Environment Setup (No window for speed)
-    num_envs = 4
-    env = SubprocVecEnv([make_env(visualize=False) for _ in range(num_envs)])
+    if not options: return None, None
+
+    print("\n--- Available Models to Resume ---")
+    for i, (run_id, path) in enumerate(options):
+        print(f"{i}: {run_id} ({os.path.basename(path)})")
+    
+    choice = input(f"\nSelect index (Enter for NEW): ")
+    return options[int(choice)] if choice.isdigit() and int(choice) < len(options) else (None, None)
+
+def train():
+    run_id, model_path = select_resume_option()
+    
+    # Setup environment (4 envs for Ryzen 7 7435HS overhead)
+    env = SubprocVecEnv([lambda: MKDSEnv(visualize=False) for _ in range(4)])
     env = VecFrameStack(env, n_stack=config.STACK_SIZE, channels_order='last')
 
-    model_path = "outputs/mkds_dqn_final.zip"
-    
-    if args.load and os.path.exists(args.load):
-        print(f"--- Resuming from: {args.load} ---")
-        model = DQN.load(args.load, env=env, device="cuda")
+    if model_path:
+        print(f"--- Resuming: {run_id} ---")
+        model = DQN.load(model_path, env=env, device="cuda")
+        # SB3 DQN requires manual replay buffer loading
+        buffer_path = model_path.replace(".zip", "_replay_buffer.pkl")
+        if os.path.exists(buffer_path):
+            model.load_replay_buffer(buffer_path)
     else:
-        print(f"--- Starting Fresh Run: {run_id} ---")
-        model = DQN(
-            "CnnPolicy", env,
-            buffer_size=config.MEMORY_SIZE,        
-            batch_size=config.BATCH_SIZE,         
-            learning_rate=config.LEARNING_RATE,    
-            #optimize_memory_usage=True,
-            verbose=1,
-            device="cuda",
-            tensorboard_log="./logs/" #
-        )
+        run_id = f"DQN_{datetime.now().strftime('%m%d_%H%M')}"
+        print(f"--- Fresh Run: {run_id} ---")
+        model = DQN("CnnPolicy", env, verbose=1, device="cuda",
+                    buffer_size=config.MEMORY_SIZE, batch_size=config.BATCH_SIZE)
 
-    # Automated Checkpoints with Replay Buffers
-    checkpoint_callback = CheckpointCallback(
-        save_freq=10000, 
-        save_path=f'./outputs/sb3_models/{run_id}/',
-        name_prefix="mkds_model",
-        save_replay_buffer=True
-    )
+    base_path = f"outputs/{run_id}"
+    os.makedirs(f"{base_path}/models", exist_ok=True)
+    os.makedirs(f"{base_path}/logs", exist_ok=True)
+
+    # Combined Callbacks
+    callbacks = CallbackList([
+        MKDSMetricsCallback(log_dir=f"{base_path}/logs"),
+        CheckpointCallback(save_freq=10000, save_path=f"{base_path}/models/", 
+                           name_prefix="mkds_ckpt", save_replay_buffer=True)
+    ])
 
     try:
-        model.learn(
-            total_timesteps=1000000, 
-            callback=checkpoint_callback,
-            tb_log_name=run_id, # Segregates metrics in TensorBoard
-            reset_num_timesteps=False 
-        )
+        print("Training started. Press Ctrl+C to stop safely.")
+        model.learn(total_timesteps=1000000, callback=callbacks, reset_num_timesteps=False)
+    except KeyboardInterrupt:
+        print("\n[INTERRUPT] Caught Ctrl+C. Saving current progress...")
     finally:
-        model.save(f"outputs/{run_id}_final")
+        # Final Emergency Save
+        final_save = f"{base_path}/models/interrupted_exit"
+        model.save(final_save)
+        model.save_replay_buffer(f"{final_save}_replay_buffer")
+        print(f"Safety Save Complete: {final_save}")
+        try:
+            print("Closing environments...")
+            env.close()
+        except (BrokenPipeError, EOFError, ConnectionResetError):
+            # On Windows, Ctrl+C often kills the sub-processes 
+            # before we can send the 'close' command over the pipe.
+            print("Environments already closed or pipe broken. Finalizing exit.")
+if __name__ == "__main__":
+    train()
