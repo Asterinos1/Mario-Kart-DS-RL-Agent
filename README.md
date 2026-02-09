@@ -41,7 +41,7 @@ To start training:
 ```bash
 python train_sb3_dqn.py
 ```
-You can either let it finish (zzz) or interupt the process at any time with Ctrl+C. You can train new models or resume training previous ones. Models are saved in the /outputs directory.
+You can either let it finish (zzz) or interupt the process at any time with Ctrl+C. You can train new models or resume training previous ones. Models are saved in the `/outputs` directory.
 
 ### Evaluation
 Once training is complete or interrupted, you can evaluate the agent's performance by watching it drive or by generating analytical visualizations.
@@ -63,8 +63,9 @@ python plot_generator.py
 ```bash
 python tf_event_parser.py
 ```
-Viewing Results: To see the graphs and plots, navigate to: outputs/{run_id}/plots/
+Viewing Results: To see the graphs and plots, navigate to: `outputs/{run_id}/plots/`
 
+---
 
 ## License
 
