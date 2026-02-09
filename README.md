@@ -20,7 +20,7 @@ Developed as part of the **Autonomous Agents (ΠΛΗ 412, 2025–2026)** course 
 
 ## Execution workflow
 
-NOTE: This is a "quick start" guide, check out the project's documentation for more details.
+**NOTE: This is a "Quick Start" guide, check out the project's documentation for more details.**
 
 ### Setting up the enviroment
 1. Clone the repo
@@ -43,7 +43,7 @@ python train_sb3_dqn.py
 ```
 You can either let it finish (zzz) or interupt the process at any time with Ctrl+C. You can train new models or resume training previous ones. Models are saved in the /outputs directory.
 
-### Evalutaion
+### Evaluation
 Once training is complete or interrupted, you can evaluate the agent's performance by watching it drive or by generating analytical visualizations.
 
 - Watch the Agent Drive:
@@ -64,3 +64,8 @@ python plot_generator.py
 python tf_event_parser.py
 ```
 Viewing Results: To see the graphs and plots, navigate to: outputs/{run_id}/plots/
+
+
+### License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
