@@ -53,6 +53,8 @@ Run the demonstration script to open a separate window where the agent drives au
 python demo.py
 ```
 
+![Mario Kart RL Agent Demo](/media/lowres.gif)
+
 - Generate Performance Plots:
 
 Analyze telemetry data (spatial heatmaps and action distributions) and training metrics (learning curves and efficiency).
