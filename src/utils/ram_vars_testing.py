@@ -1,21 +1,27 @@
 import time
 import os
 import math
-import sys
 import keyboard
 from desmume.emulator import DeSmuME
 from desmume.controls import keymask, Keys
+import config
+
+"""
+RAM Variable Testing Suite for Mario Kart DS (US Version).
+Used to verify memory offsets and validate telemetry extraction 
+before integration into the Gymnasium environment.
+"""
 
 # --- CONFIGURATION ---
-ROM_PATH = 'C:/Users/PC/Desktop/DS-DSi/Libray/mkds_usa.nds'
-SAVE_FILE_NAME = 'C:/Users/PC/Documents/GitHub/MKDS-RL-Agent/mkds_boot.dst'
+ROM_PATH = config.ROM_PATH
+SAVE_FILE_NAME = config.SAVE_FILE_NAME
 
 # --- POINTERS (US Version) ---
 ADDR_BASE_POINTER      = 0x0217ACF8
 ADDR_RACE_INFO_POINTER = 0x021755FC
 ADDR_TIMER_POINTER     = 0x0217AA34
 ADDR_ITEM_INFO_POINTER = 0x020FA8A4
-ADDR_COURSE_ID         = 0x023CDCD8  # <--- New Pointer for Course ID
+ADDR_COURSE_ID         = 0x023CDCD8  
 
 # --- OFFSETS ---
 OFFSET_POS_X       = 0x80
@@ -27,13 +33,13 @@ OFFSET_VEL_Z       = 0xAC
 OFFSET_MOV_DIR_X   = 0x68
 OFFSET_INPUT_DIR_X = 0x50
 OFFSET_NORM_X      = 0x244
-OFFSET_NORM_Y      = 0x248  # Upward normal (1.0 = Flat)
+OFFSET_NORM_Y      = 0x248  
 OFFSET_NORM_Z      = 0x24C
 
 OFFSET_SPEED       = 0x2A8
 OFFSET_YSPEED      = 0x260
 OFFSET_MAX_SPEED   = 0xD0
-OFFSET_OFFROAD     = 0xDC   # <--- Offroad Speed Modifier
+OFFSET_OFFROAD     = 0xDC  
 OFFSET_TURN_LOSS   = 0x2D4
 OFFSET_AIR_SPEED   = 0x3F8
 OFFSET_WALL_MULT   = 0x38C
@@ -45,7 +51,7 @@ OFFSET_DRIFT_ANGLE = 0x388
 OFFSET_MT_CHARGE   = 0x30C
 OFFSET_MT_BOOST    = 0x23C
 OFFSET_BOOST_ALL   = 0x238
-OFFSET_GRIP        = 0x240  # <--- Surface Grip
+OFFSET_GRIP        = 0x240  
 OFFSET_AIR_FRAMES  = 0x380
 OFFSET_SPAWN_ID    = 0x3C4
 OFFSET_STATUS_FLAGS= 0x44

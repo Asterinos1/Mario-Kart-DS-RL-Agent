@@ -8,20 +8,18 @@ from desmume.emulator import DeSmuME, SCREEN_WIDTH, SCREEN_HEIGHT_BOTH
 from src.utils import config
 
 class MKDSEnv(gym.Env):
+    """
+    Gymnasium environment for Mario Kart DS.
+    Uses DeSmuME for emulation and memory access for reward shaping.
+    """
     def __init__(self, visualize=False):
         super(MKDSEnv, self).__init__()
         self.emu = DeSmuME()
         self.emu.open(config.ROM_PATH)
-        
-        # Only create window if requested to save resources during training
         self.window = None
         if visualize:
             self.window = self.emu.create_sdl_window()
-        
-        # Action Space: 6 Discrete actions
         self.action_space = spaces.Discrete(config.ACTION_SPACE)
-        
-        # Observation Space: 84x84 Grayscale
         self.observation_space = spaces.Box(low=0, high=255, 
                                             shape=(config.STATE_H, config.STATE_W, 1), 
                                             dtype=np.uint8)
@@ -37,8 +35,8 @@ class MKDSEnv(gym.Env):
         self.last_cp_time_stamp = 0 # Track internal time of last CP change
 
     def _setup_actions(self):
+        """Maps discrete actions to DeSmuME keymasks."""
         from desmume.controls import keymask, Keys
-        # Removed DRIFT (Keymask for Keys.KEY_R) 
         ACCEL, LEFT, RIGHT = keymask(Keys.KEY_A), keymask(Keys.KEY_LEFT), keymask(Keys.KEY_RIGHT)
         # ACCEL, LEFT, RIGHT, DRIFT = keymask(Keys.KEY_A), keymask(Keys.KEY_LEFT), keymask(Keys.KEY_RIGHT), keymask(Keys.KEY_R)
         # return {
@@ -56,6 +54,7 @@ class MKDSEnv(gym.Env):
     }
 
     def _get_obs(self):
+        """Captures the top screen and processes it for the CNN."""
         raw_mv = self.emu.display_buffer_as_rgbx() 
         img = np.frombuffer(raw_mv, dtype=np.uint8).reshape(SCREEN_HEIGHT_BOTH, SCREEN_WIDTH, 4)
         
@@ -77,9 +76,9 @@ class MKDSEnv(gym.Env):
         return int.from_bytes(mem[ptr_val : ptr_val + 4], 'little')
 
     def _read_ram(self):
+        """Reads physics and race progress from NDS RAM."""
         mem = self.emu.memory.unsigned
-        
-        # Read Pointers
+    
         base_ptr = int.from_bytes(mem[config.ADDR_BASE_POINTER:config.ADDR_BASE_POINTER+4], 'little')
         race_ptr = int.from_bytes(mem[config.ADDR_RACE_INFO_POINTER:config.ADDR_RACE_INFO_POINTER+4], 'little')
         
@@ -101,16 +100,14 @@ class MKDSEnv(gym.Env):
         return speed, angle, checkpoint, lap, offroad, pos
 
     def step(self, action):
-        # [cite_start]Apply inputs [cite: 21, 22]
+        """Executes one environment step (4 emulator cycles)."""
+        # Apply inputs
         self.emu.input.keypad_update(0)
         for key in self.action_map[action]:
             self.emu.input.keypad_add_key(key)
-        
-        # [cite_start]Step emulator and update window [cite: 138, 12]
+        # Step emulator and update window
         for _ in range(4): 
-            self.emu.cycle() 
-        # commenting this out    
-        # FIX: Only draw if the window was initialized
+            self.emu.cycle()   
         if self.window is not None:
             self.window.draw()
 
@@ -162,7 +159,6 @@ class MKDSEnv(gym.Env):
             reward = -20.0
             reason = "stuck"
         
-
         # --- STANDARD REWARD (If not terminated/truncated) ---
         if not (terminated or truncated):
             reward = speed * 2.0
@@ -181,7 +177,6 @@ class MKDSEnv(gym.Env):
         self.prev_checkpoint, self.prev_lap = cp, lap
         self.last_pos, self.prev_speed = pos, speed
         
-        # Enhanced Info Dictionary
         info = {
             "telemetry": {
                 "speed": speed,
@@ -197,6 +192,7 @@ class MKDSEnv(gym.Env):
         return obs, reward, terminated, truncated, info
 
     def reset(self, seed=None, options=None):
+        """Resets the environment to the boot save state."""
         super().reset(seed=seed)
         # Reload the boot save state instead of closing/opening 
         if os.path.exists(config.SAVE_FILE_NAME):

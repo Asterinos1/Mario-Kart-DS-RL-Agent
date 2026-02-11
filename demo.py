@@ -26,7 +26,6 @@ def select_model():
             choice = int(input(f"\nSelect a model to run (1-{len(model_files)}): "))
             if 1 <= choice <= len(model_files):
                 selected_path = model_files[choice - 1]
-                # Remove .zip extension because SB3 load appends it automatically
                 return os.path.splitext(selected_path)[0]
             else:
                 print("Invalid selection. Try again.")
@@ -46,8 +45,6 @@ def run_demo():
     env = VecFrameStack(env, n_stack=config.STACK_SIZE, channels_order='last')
 
     try:
-        # Load the model
-        # Using device="cpu" is often faster for single-env inference to avoid VRAM overhead
         model = DQN.load(model_path, env=env, device="cuda")
         print("DQN Model loaded successfully.")
     except Exception as e:
@@ -65,7 +62,7 @@ def run_demo():
     
     try:
         while True: 
-            # Predict action - deterministic=True is standard for testing/demo
+            # Settings deterministic to false actually provides better demos (!!!)
             action, _states = model.predict(obs, deterministic=False)
             
             # Step the environment

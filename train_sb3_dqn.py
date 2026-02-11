@@ -30,18 +30,15 @@ def select_resume_option():
 
 def train():
     run_id, model_path = select_resume_option()
-    # Define the log directory for TensorBoard
-    # You can point this to the root /logs or keep it inside /outputs/{run_id}/logs
     tb_log_path = "./logs/"
     
-    # Setup environment (4 envs for Ryzen 7 7435HS overhead)
-    env = SubprocVecEnv([lambda: MKDSEnv(visualize=False) for _ in range(4)])
+    # Setup environment
+    env = SubprocVecEnv([lambda: MKDSEnv(visualize=False) for _ in range(config.NUM_OF_INSTANCES)])
     env = VecFrameStack(env, n_stack=config.STACK_SIZE, channels_order='last')
 
     if model_path:
         print(f"--- Resuming: {run_id} ---")
         model = DQN.load(model_path, env=env, device="cuda", tensorboard_log=tb_log_path)
-        # SB3 DQN requires manual replay buffer loading
         buffer_path = model_path.replace(".zip", "_replay_buffer.pkl")
         if os.path.exists(buffer_path):
             model.load_replay_buffer(buffer_path)
@@ -77,8 +74,6 @@ def train():
             print("Closing environments...")
             env.close()
         except (BrokenPipeError, EOFError, ConnectionResetError):
-            # On Windows, Ctrl+C often kills the sub-processes 
-            # before we can send the 'close' command over the pipe.
             print("Environments already closed or pipe broken. Finalizing exit.")
 if __name__ == "__main__":
     train()
