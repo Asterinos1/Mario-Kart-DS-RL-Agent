@@ -30,7 +30,7 @@ git clone https://github.com/Asterinos1/Mario-Kart-DS-RL-Agent.git
 2. Create and activate a Python virtual environment (recommended)
 3. Install dependencies:
 ```bash
-pip install -r requierments.txt
+pip install -r requirements.txt
 ```
 4. Place your Mario Kart DS ROM (USA version) in the `rom/` folder.
 
@@ -41,7 +41,7 @@ To start training:
 ```bash
 python train_sb3_dqn.py
 ```
-You can either let it finish (zzz) or interupt the process at any time with Ctrl+C. You can train new models or resume training previous ones. Models are saved in the `/outputs` directory.
+You can either let it finish (zzz) or interupt the process at any time with Ctrl+C. You can train new models or resume training previous ones. Models are saved in the `outputs/` directory.
 
 ### Evaluation
 Once training is complete or interrupted, you can evaluate the agent's performance by watching it drive or by generating analytical visualizations.
