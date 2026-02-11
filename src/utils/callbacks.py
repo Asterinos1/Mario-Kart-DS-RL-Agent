@@ -18,16 +18,19 @@ class MKDSMetricsCallback(BaseCallback):
         with open(self.log_path, 'a', newline='') as f:
             writer = csv.writer(f)
             if not file_exists:
-                writer.writerow(["step", "speed", "offroad", "pos_x", "pos_z", "action", "reason"])
+                #writer.writerow(["step", "speed", "offroad", "pos_x", "pos_z", "action", "reason"])
+                writer.writerow(["step", "speed", "offroad", "pos_x", "pos_z", "action", "reason", "reward"])
 
     def _on_step(self) -> bool:
         """Buffers telemetry data from all environment instances."""
         for i in range(len(self.locals["infos"])):
             info = self.locals["infos"][i]
+            reward = self.locals["rewards"][i] # Capture current step reward
             tel = info["telemetry"]
             self.buffer.append([
                 self.num_timesteps, tel["speed"], tel["offroad"], 
-                tel["pos_x"], tel["pos_z"], tel["action"], info.get("terminal_reason", "")
+                tel["pos_x"], tel["pos_z"], tel["action"],
+                info.get("terminal_reason", ""), reward
             ])
 
         if len(self.buffer) >= self.flush_freq:

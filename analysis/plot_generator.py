@@ -94,6 +94,19 @@ def generate_plots():
     plt.xlabel("Offroad Modifier (Lower = More Grass)")
     plt.ylabel("Speed")
     plt.savefig(os.path.join(plot_dir, "speed_offroad.png"), dpi=300)
+
+    # 5. Cumulative Reward Progress
+    if 'reward' in df.columns:
+        plt.figure(figsize=(10, 6))
+        # Calculate cumulative reward over steps
+        df['cumulative_reward'] = df['reward'].cumsum()
+        
+        plt.plot(df['step'], df['cumulative_reward'], color='green', linewidth=2)
+        plt.title("Cumulative Reward over Training Steps")
+        plt.xlabel("Step")
+        plt.ylabel("Total Reward")
+        plt.grid(True, alpha=0.3)
+        plt.savefig(os.path.join(plot_dir, "cumulative_reward.png"), dpi=300)
         
     print(f"Plots saved to {plot_dir}/")
 
