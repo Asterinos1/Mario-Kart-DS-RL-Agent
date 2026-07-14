@@ -1,0 +1,7 @@
+# This file exists to track the rom/ directory in Git.
+# The actual ROM file (.nds) is git-ignored — you must supply it yourself.
+#
+# Place your Mario Kart DS (USA, Rev 0) ROM here:
+#   rom/<your-file>.nds
+#
+# The emulator will find it automatically via config.ROM_PATH.

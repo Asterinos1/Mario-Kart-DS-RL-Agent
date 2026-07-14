@@ -1,23 +1,46 @@
 from pathlib import Path
+from typing import Optional
 
 """
 Configuration constants for the Mario Kart DS RL Agent.
 Contains directory paths, RL hyperparameters, and memory addresses for the US ROM.
+
+Note: ROM_PATH is resolved lazily on first access so that importing this module
+never raises — analysis scripts and utilities can import config freely on
+machines that have no ROM installed.
 """
 
 # Project Root Discovery
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 
-# --- ROM & SAVE STATE PATH ---
-# Locate any .nds file within root/rom/
-rom_folder = ROOT_DIR / "rom"
-rom_files = list(rom_folder.glob("*.nds"))
-
-if not rom_files:
-    raise FileNotFoundError(f"No .nds ROM found in {rom_folder}")
-
-ROM_PATH = str(rom_files[0])
+# --- SAVE STATE PATH (always available) ---
 SAVE_FILE_NAME = str(ROOT_DIR / "mkds_boot.dst")
+
+# --- ROM PATH (lazy — resolved on first access via __getattr__) ---
+# Access as: config.ROM_PATH  (same API as before)
+_rom_path_cache: Optional[str] = None
+
+
+def _resolve_rom_path() -> str:
+    """Locates the first .nds file inside rom/ and returns its absolute path."""
+    rom_folder = ROOT_DIR / "rom"
+    rom_files = list(rom_folder.glob("*.nds"))
+    if not rom_files:
+        raise FileNotFoundError(
+            f"No .nds ROM found in {rom_folder}. "
+            "Place your Mario Kart DS (USA) ROM in the rom/ directory."
+        )
+    return str(rom_files[0])
+
+
+def __getattr__(name: str) -> str:
+    """Module-level lazy attribute resolution (PEP 562 / Python 3.7+)."""
+    if name == "ROM_PATH":
+        global _rom_path_cache
+        if _rom_path_cache is None:
+            _rom_path_cache = _resolve_rom_path()
+        return _rom_path_cache
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 # --- RL Hyperparameters ---
 STATE_W, STATE_H = 84, 84

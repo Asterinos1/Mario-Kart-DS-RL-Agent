@@ -2,6 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
+from pathlib import Path
 
 def generate_plots():
     """Generates performance plots from telemetry CSV logs."""
@@ -14,7 +15,9 @@ def generate_plots():
         'figure.autolayout': True
     })
 
-    base_dir = "../outputs"
+    # Anchor to project root via __file__ so the script works whether run from
+    # the project root (`python analysis/plot_generator.py`) or from analysis/.
+    base_dir = str(Path(__file__).resolve().parent.parent / "outputs")
     
     if not os.path.exists(base_dir):
         print(f"Error: Directory '{base_dir}' not found. Current path: {os.getcwd()}")
@@ -57,8 +60,10 @@ def generate_plots():
     plt.title("Track Position Density")
     plt.xlabel("Position X")
     plt.ylabel("Position Z")
-    plt.grid(True) 
+    plt.grid(True)
+    # Note: pos_x/pos_z are raw NDS fixed-point units; divide by 4096.0 for real-world scale.
     plt.savefig(os.path.join(plot_dir, "heatmap.png"), dpi=300, facecolor='white')
+    plt.close()
 
     # 2. Action Frequency (With Descriptive Labels)
     plt.figure(figsize=(8, 6))
@@ -71,6 +76,7 @@ def generate_plots():
     plt.ylabel("Frequency")
     plt.grid(axis='y', linestyle='--', alpha=0.7)
     plt.savefig(os.path.join(plot_dir, "actions.png"), dpi=300)
+    plt.close()
 
     # 3. Terminal Reasons
     plt.figure(figsize=(8, 8))
@@ -86,6 +92,7 @@ def generate_plots():
         )
         plt.title("Episode Termination Reasons")
     plt.savefig(os.path.join(plot_dir, "reasons.png"), dpi=300)
+    plt.close()
 
     # 4. Speed vs Offroad Correlation
     plt.figure(figsize=(8, 6))
@@ -94,6 +101,7 @@ def generate_plots():
     plt.xlabel("Offroad Modifier (Lower = More Grass)")
     plt.ylabel("Speed")
     plt.savefig(os.path.join(plot_dir, "speed_offroad.png"), dpi=300)
+    plt.close()
 
     # 5. Cumulative Reward Progress
     if 'reward' in df.columns:

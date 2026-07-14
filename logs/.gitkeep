@@ -1,0 +1,8 @@
+# This file exists to track the logs/ directory in Git.
+# All generated content (TensorBoard event files) is git-ignored.
+#
+# After training, this directory will contain:
+#   logs/<run_id>/     — TensorBoard event files
+#
+# View with:
+#   tensorboard --logdir logs/

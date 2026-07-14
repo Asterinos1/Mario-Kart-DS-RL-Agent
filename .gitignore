@@ -22,8 +22,11 @@ env_local/
 # ============================================================
 # RL / ML Outputs
 # ============================================================
-/logs/
-/outputs/
+# Ignore all content inside these dirs but keep the dirs themselves via .gitkeep
+logs/*
+!logs/.gitkeep
+outputs/*
+!outputs/.gitkeep
 logs/DQN_*/
 outputs/*.h5
 outputs/*.png

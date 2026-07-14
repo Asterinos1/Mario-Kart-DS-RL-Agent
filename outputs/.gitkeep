@@ -1,0 +1,8 @@
+# This file exists to track the outputs/ directory in Git.
+# All generated content (models, logs, plots) is git-ignored.
+#
+# After training, this directory will contain:
+#   outputs/<run_id>/
+#     models/       — model checkpoints (.zip) and replay buffers (.pkl)
+#     logs/         — telemetry CSV logs
+#     plots/        — generated analysis plots
