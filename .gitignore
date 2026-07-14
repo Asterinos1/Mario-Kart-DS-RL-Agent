@@ -1,21 +1,76 @@
-# --- Environments ---
-mkds_venv/
-.venv/
-envs/
-/logs/
-/outputs/
-logs/DQN_*/
-rom/*.nds
-# --- Python Junk ---
+# ============================================================
+# Python
+# ============================================================
 __pycache__/
 *.py[cod]
 *$py.class
+*.egg-info/
+*.egg
 .pytest_cache/
-emu_documentation.txt
-# --- IDEs ---
-.vscode/
-# --- RL Outputs ---
+dist/
+build/
+
+# ============================================================
+# Virtual Environments
+# ============================================================
+mkds_venv/
+.venv/
+venv/
+envs/
+env_local/
+
+# ============================================================
+# RL / ML Outputs
+# ============================================================
+/logs/
+/outputs/
+logs/DQN_*/
 outputs/*.h5
 outputs/*.png
 outputs/*.json
+
+# Trained model checkpoints
+*.zip
+*.pkl
+*.pt
+*.pth
+*.ckpt
+
+# TensorBoard event files
+events.out.tfevents.*
+
+# ============================================================
+# ROM & Emulator
+# ============================================================
+rom/*.nds
 emu_documentation.txt
+
+# ============================================================
+# IDEs & Editors
+# ============================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ============================================================
+# OS Artifacts
+# ============================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ============================================================
+# Agentic / AI Tool Artifacts  (NOT pushed to GitHub)
+# ============================================================
+
+# Antigravity (AGY) agent config & memory
+.gemini/
+GEMINI.md.bak
+
+# Graphify knowledge graph outputs
+graphify-out/
+
+# Caveman plugin artifacts
+*.caveman
