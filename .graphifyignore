@@ -1,0 +1,91 @@
+# ============================================================
+# .graphifyignore — Mario Kart DS RL Agent
+# Controls what gets indexed into the graphify knowledge graph.
+# Syntax is identical to .gitignore (glob patterns).
+# Takes precedence over .gitignore when both exist.
+# ============================================================
+
+# ============================================================
+# Virtual Environments
+# ============================================================
+mkds_venv/
+.venv/
+venv/
+envs/
+env_local/
+
+# ============================================================
+# Python Bytecode & Cache
+# ============================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+
+# ============================================================
+# ROM & Emulator Binaries  (proprietary / binary — no value to graph)
+# ============================================================
+rom/
+*.nds
+*.dst
+emu_documentation.txt
+
+# ============================================================
+# RL / ML Outputs  (generated artifacts — not source)
+# ============================================================
+outputs/
+logs/
+
+# Trained model checkpoints
+*.zip
+*.pkl
+*.pt
+*.pth
+*.ckpt
+*.h5
+
+# TensorBoard event files
+events.out.tfevents.*
+
+# ============================================================
+# Graphify Own Output  (avoid self-referential indexing)
+# ============================================================
+graphify-out/
+
+# ============================================================
+# Media & Binary Assets  (no extractable graph knowledge)
+# ============================================================
+media/
+*.gif
+*.png
+*.jpg
+*.jpeg
+*.mp4
+*.mp3
+*.wav
+
+# ============================================================
+# Documents & Reports  (large PDFs add noise, not structure)
+# ============================================================
+*.pdf
+
+# ============================================================
+# Dependency / Lock Files  (generated, low signal)
+# ============================================================
+requirements.txt
+
+# ============================================================
+# OS & Editor Artifacts
+# ============================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+
+# ============================================================
+# Agentic Artifacts  (agent internals, not project source)
+# ============================================================
+.gemini/
