@@ -73,6 +73,9 @@ desktop.ini
 GEMINI.md
 GEMINI.md.bak
 
+# Local-only project files (not for public repo)
+IMPROVEMENTS.md
+
 # Graphify knowledge graph outputs
 graphify-out/
 .graphifyignore
