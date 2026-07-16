@@ -17,15 +17,98 @@ Key design choices:
 
 Typical usage::
 
-    python demo.py
+    python demo.py --model DQN_0716_1200 --deterministic
 """
 
 import os
 import glob
+import argparse
+import logging
 from stable_baselines3 import DQN
 from stable_baselines3.common.vec_env import VecFrameStack, DummyVecEnv
 from env.mkds_gym_env import MKDSEnv
-from src.utils import config
+from src.utils import config, setup_logging
+
+logger = logging.getLogger(__name__)
+
+
+
+def parse_args():
+    """Parses command-line arguments for evaluation and demonstration options."""
+    parser = argparse.ArgumentParser(
+        description="Run a trained Mario Kart DS DQN agent in demonstration mode."
+    )
+    parser.add_argument(
+        "--model", "-m",
+        type=str,
+        default=None,
+        help="Path to a model checkpoint (.zip) or a run ID in outputs/ to demo. "
+             "If not specified, the interactive selection menu will be displayed.",
+    )
+    parser.add_argument(
+        "--stack-size",
+        type=int,
+        default=config.STACK_SIZE,
+        help=f"Number of consecutive frames stacked per observation (default: {config.STACK_SIZE})",
+    )
+    parser.add_argument(
+        "--action-space",
+        type=int,
+        default=config.ACTION_SPACE,
+        choices=[3, 6],
+        help=f"Number of discrete actions: 3 (basic) or 6 (with drift) (default: {config.ACTION_SPACE})",
+    )
+    parser.add_argument(
+        "--deterministic",
+        action="store_true",
+        help="Run model predictions deterministically (default is stochastic to produce smoother driving).",
+    )
+    parser.add_argument(
+        "--no-visualize",
+        action="store_true",
+        help="Run the environment headless (without the SDL visual window).",
+    )
+    return parser.parse_args()
+
+
+def resolve_demo_model_path(model_arg):
+    """Resolves a model path or a run ID to a model file path without .zip extension.
+
+    Args:
+        model_arg (str): A filename, file path, or run ID.
+
+    Returns:
+        str: Absolute-style path to the model file ready to load (without .zip extension).
+
+    Raises:
+        FileNotFoundError: If the specified run or model could not be found.
+    """
+    # 1. Check if it's a direct path to a model file (with or without .zip extension)
+    clean_arg = model_arg
+    if clean_arg.endswith(".zip"):
+        clean_arg = clean_arg[:-4]
+    
+    zip_path = clean_arg + ".zip"
+    if os.path.isfile(zip_path):
+        return os.path.abspath(clean_arg)
+
+    # 2. Check if it's a run ID or directory name
+    run_id = os.path.basename(os.path.normpath(model_arg))
+    run_dir = os.path.normpath(os.path.join("outputs", run_id))
+    
+    if os.path.isdir(run_dir):
+        model_files = glob.glob(os.path.join(run_dir, "models", "*.zip"))
+        if model_files:
+            latest_model = max(model_files, key=os.path.getmtime)
+            # Strip .zip extension
+            return os.path.splitext(os.path.abspath(latest_model))[0]
+        else:
+            raise FileNotFoundError(f"No model checkpoints (.zip) found in {run_dir}/models/")
+    else:
+        raise FileNotFoundError(
+            f"Could not resolve model argument '{model_arg}'. "
+            f"It is not an existing model file, and no run folder found at outputs/{run_id}"
+        )
 
 
 def select_model():
@@ -71,12 +154,12 @@ def select_model():
             print("Please enter a valid number.")
 
 
-def run_demo():
+def run_demo(args=None):
     """Load a trained DQN model and run it in a live visualised environment.
 
     Workflow:
-    1. Prompts the user to select a model via :func:`select_model`.
-    2. Wraps a single :class:`~env.mkds_gym_env.MKDSEnv` (``visualize=True``)
+    1. Prompts the user to select a model via :func:`select_model` (or uses the CLI argument).
+    2. Wraps a single :class:`~env.mkds_gym_env.MKDSEnv` (``visualize=True`` unless headless)
        in a :class:`~stable_baselines3.common.vec_env.DummyVecEnv` to satisfy
        the SB3 vectorised-environment interface without spawning a subprocess.
     3. Applies :class:`~stable_baselines3.common.vec_env.VecFrameStack` to
@@ -85,22 +168,34 @@ def run_demo():
        at each episode boundary.
     5. Calls ``base_env.emu.destroy()`` in a ``finally`` block to cleanly shut
        down the emulator regardless of how the loop exits.
-
-    Note:
-        ``deterministic=False`` is used intentionally: stochastic action
-        selection (via the epsilon-greedy exploration policy) tends to produce
-        smoother, more watchable driving than a fully greedy policy, which can
-        get stuck repeating a single optimal action sequence.
     """
-    model_path = select_model()
+    if args is None:
+        args = parse_args()
+
+    # Initialize console logging
+    setup_logging()
+
+    # Override config values
+    config.STACK_SIZE = args.stack_size
+    config.ACTION_SPACE = args.action_space
+
+    if args.model:
+        try:
+            model_path = resolve_demo_model_path(args.model)
+        except FileNotFoundError as e:
+            logger.error(f"Error loading model: {e}")
+            return
+    else:
+        model_path = select_model()
+
     if not model_path:
         return
 
-    print(f"\nInitializing Mario Kart DS Environment with model: {os.path.basename(model_path)}...")
+    logger.info(f"Initializing Mario Kart DS Environment with model: {os.path.basename(model_path)}...")
 
-    # Instantiate the base environment with the SDL window enabled so the user
-    # can watch the agent drive in real time.
-    base_env = MKDSEnv(visualize=True)
+    # Instantiate the base environment. We support toggling visualization.
+    visualize = not args.no_visualize
+    base_env = MKDSEnv(visualize=visualize)
 
     # DummyVecEnv wraps a single environment in the VecEnv interface without
     # creating a subprocess -- ideal for demo/inference where parallelism is
@@ -111,10 +206,10 @@ def run_demo():
     env = VecFrameStack(env, n_stack=config.STACK_SIZE, channels_order='last')
 
     try:
-        model = DQN.load(model_path, env=env, device="cuda")
-        print("DQN Model loaded successfully.")
+        model = DQN.load(model_path, env=env, device="auto")
+        logger.info("DQN Model loaded successfully.")
     except Exception as e:
-        print(f"Error: Model didn't load properly. {e}")
+        logger.error(f"Error: Model didn't load properly. {e}")
         # Destroy the emulator before returning to avoid orphaned processes.
         base_env.emu.destroy()
         return
@@ -123,16 +218,15 @@ def run_demo():
     episode_count = 1
     current_episode_reward = 0  # Accumulates reward over the current episode.
 
-    print(f"\n--- Starting Episode {episode_count} ---")
-    print("Focus the SDL Window to see the agent drive.")
-    print("Press Ctrl+C in this terminal to stop.")
+    logger.info(f"--- Starting Episode {episode_count} ---")
+    if visualize:
+        logger.info("Focus the SDL Window to see the agent drive.")
+    logger.info("Press Ctrl+C in this terminal to stop.")
 
     try:
         while True:
-            # deterministic=False: allow the policy to sample non-greedy actions.
-            # This adds slight variance that produces more natural driving behaviour
-            # compared to always picking the single highest-Q action.
-            action, _states = model.predict(obs, deterministic=False)
+            # deterministic: allow user to force greedy actions if requested.
+            action, _states = model.predict(obs, deterministic=args.deterministic)
 
             # Advance the environment by one timestep with the chosen action.
             obs, rewards, dones, infos = env.step(action)
@@ -142,18 +236,18 @@ def run_demo():
 
             if dones[0]:
                 # Episode boundary: print summary and reset the episode counter.
-                print(f"Episode {episode_count} Finished | Reward: {current_episode_reward:.2f}")
+                logger.info(f"Episode {episode_count} Finished | Reward: {current_episode_reward:.2f}")
                 episode_count += 1
                 current_episode_reward = 0  # Reset accumulator for the new episode.
-                print(f"\n--- Starting Episode {episode_count} ---")
+                logger.info(f"--- Starting Episode {episode_count} ---")
 
     except KeyboardInterrupt:
-        print("\nDemonstration stopped by user.")
+        logger.info("Demonstration stopped by user.")
     finally:
         # Always destroy the emulator to release the SDL window and any
         # underlying DeSmuME resources, even if an exception occurred.
         base_env.emu.destroy()
-        print("Emulator closed.")
+        logger.info("Emulator closed.")
 
 
 if __name__ == "__main__":

@@ -101,20 +101,21 @@ class MKDSEnv(gym.Env):
         """
         from desmume.controls import keymask, Keys
         ACCEL, LEFT, RIGHT = keymask(Keys.KEY_A), keymask(Keys.KEY_LEFT), keymask(Keys.KEY_RIGHT)
-        # ACCEL, LEFT, RIGHT, DRIFT = keymask(Keys.KEY_A), keymask(Keys.KEY_LEFT), keymask(Keys.KEY_RIGHT), keymask(Keys.KEY_R)
-        # return {
-        #     0: [ACCEL], 
-        #     1: [ACCEL, LEFT], 
-        #     2: [ACCEL, RIGHT],
-        #     3: [ACCEL, DRIFT], 
-        #     4: [ACCEL, DRIFT, LEFT], 
-        #     5: [ACCEL, DRIFT, RIGHT]
-        # }
+        if config.ACTION_SPACE == 6:
+            DRIFT = keymask(Keys.KEY_R)
+            return {
+                0: [ACCEL], 
+                1: [ACCEL, LEFT], 
+                2: [ACCEL, RIGHT],
+                3: [ACCEL, DRIFT], 
+                4: [ACCEL, DRIFT, LEFT], 
+                5: [ACCEL, DRIFT, RIGHT]
+            }
         return {
-        0: [ACCEL],         # Straight
-        1: [ACCEL, LEFT],   # Left
-        2: [ACCEL, RIGHT]   # Right
-    }
+            0: [ACCEL],         # Straight
+            1: [ACCEL, LEFT],   # Left
+            2: [ACCEL, RIGHT]   # Right
+        }
 
     def _get_obs(self):
         """Captures the top screen and processes it for the CNN.
@@ -284,18 +285,20 @@ class MKDSEnv(gym.Env):
         # 1. Backward Driving Detection
         # If the checkpoint index decreased without crossing the finish line the
         # kart is driving the wrong way - terminate immediately with a large penalty.
+        # We guard against lap rollover by checking if the drop is small (less than 10).
         if cp < self.prev_checkpoint and lap == self.prev_lap:
-            terminated = True
-            reward = -50.0
-            reason = "backward"
+            if self.prev_checkpoint - cp < 10:
+                terminated = True
+                reward = -50.0
+                reason = "backward"
         
         # 2. CP Change Timeout (Internal Timer Logic)
         # 300 internal ticks = 5 seconds
         # Reset the timestamp whenever progress is made (new CP or new lap).
         if cp > self.prev_checkpoint or lap > self.prev_lap:
             self.last_cp_time_stamp = current_time  # Progress made - reset clock
-        elif (current_time - self.last_cp_time_stamp) > 10:
-            # No checkpoint for >10 ticks (~0.17 s); effectively a hard time-out
+        elif (current_time - self.last_cp_time_stamp) > 300:
+            # No checkpoint for >300 ticks (~5 s); effectively a hard time-out
             truncated = True
             terminated = True
             reward = -15.0
@@ -400,3 +403,8 @@ class MKDSEnv(gym.Env):
         self.last_cp_time_stamp = self._read_race_time()
         
         return self._get_obs(), {}
+
+    def close(self):
+        """Cleanly destroys the emulator instance to release memory and resources."""
+        if hasattr(self, 'emu') and self.emu is not None:
+            self.emu.destroy()

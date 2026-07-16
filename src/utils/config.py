@@ -95,13 +95,16 @@ STATE_W, STATE_H = 84, 84
 STACK_SIZE = 4
 
 # Parallel DeSmuME instances used for environment stepping.
-NUM_OF_INSTANCES = 4
+NUM_OF_INSTANCES = 1
 
 # Action space size.  The commented-out 6-action variant includes explicit
 # drift inputs; the active 3-action set keeps the policy simpler during
 # initial training (gas is implicit — no brake action).
 #ACTION_SPACE = 6  # 0:Straight, 1:Left, 2:Right, 3:Drift+Straight, 4:Drift+Left, 5:Drift+Right
 ACTION_SPACE = 3  # 0:Straight (Gas), 1:Left (Gas+Left), 2:Right (Gas+Right)
+
+# Total training timesteps.
+TOTAL_TIMESTEPS = 1000000
 
 # Discount factor — 0.99 gives roughly a 100-step effective horizon, suitable
 # for a race track where rewards are sparse across a full lap.
