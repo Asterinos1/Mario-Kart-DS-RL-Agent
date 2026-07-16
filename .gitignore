@@ -70,10 +70,12 @@ desktop.ini
 
 # Antigravity (AGY) agent config & memory
 .gemini/
+GEMINI.md
 GEMINI.md.bak
 
 # Graphify knowledge graph outputs
 graphify-out/
+.graphifyignore
 
 # Caveman plugin artifacts
 *.caveman
